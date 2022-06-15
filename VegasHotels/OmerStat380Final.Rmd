@@ -1,0 +1,124 @@
+---
+title: "Stat 380 Final Project"
+author: "Omer Canca"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+  word_document: default
+---
+
+# Goal
+We would like to see what variables correlate to highly rated hotels in Las Vegas. This will help us decide the important factors when booking a Hotel in Vegas
+
+# Simple Linear Regression
+
+### Clear Workspace and Load Libraries
+```{r}
+rm(list=ls())
+```
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(corrplot)
+library(leaps)
+library(lattice)
+library(caret)
+```
+
+### Data Inspection
+```{r}
+data = read.csv(file = "C:/users/omerc/Downloads/Vegas.csv", head = TRUE, sep=";")
+head(data)
+str(data)
+```
+
+### Coding Variables
+Spa = 1 for yes; 0 for no
+Gym = 1 for yes; 0 for no
+Pool = 1 for yes; 0 for no
+Casino = 1 for yes; 0 for no
+Free.internet = 1 for yes; 0 for no
+Tennis.court = 1 for yes; 0 for no
+
+```{r}
+data$Spa<-ifelse(data$Spa=="YES",1,0)
+data$Gym<-ifelse(data$Gym=="YES",1,0)
+data$Pool<-ifelse(data$Pool=="YES",1,0)
+data$Casino<-ifelse(data$Casino=="YES",1,0)
+data$Free.internet<-ifelse(data$Free.internet=="YES",1,0)
+data$Tennis.court<-ifelse(data$Tennis.court=="YES",1,0)
+df <- dplyr::select_if(data, is.numeric)
+```
+
+### Backward Selection
+We want to view which variable correlates the most with the "Score" Variable. This will allow hotels in Vegas to see what their guests view as most important.
+
+We did this using backward stepwise selection. This process begins with a model containing all the variables, then removes the least significant ones one after the other. Then it stops when there is one left.
+```{r}
+br <- regsubsets(Score~., data = df, nvmax = 1,
+                     method = "backward")
+summary(br)
+```
+Our results tell us that Pool is the most significant variable.
+
+### Building our SLR Model and Plotting
+Using Pool to predict the score
+
+We see that the variable Pool is significant.
+```{r}
+model1 = lm(Score ~ Pool, data = df)
+summary(model1)
+ggplot(df, aes(x=Pool, y=Score)) +
+  geom_boxplot(fill='steelblue') +  facet_wrap(~ Pool) + ylim(0,5.5)
+```
+
+# Multiple Linear Regression
+Now, we would like to see if we are better off using a model with more predictors
+
+### Stepwise Regression
+We will build models with 2, 3, 4, and 5 variables based on forward regression.
+
+```{r}
+fr <- regsubsets(Score~., data = df, nvmax = 5,
+                     method = "forward")
+summary(fr)
+```
+Our analysis tells us that our new models will be
+```{r}
+model2 = lm(Score ~ Pool + Free.internet, data = df)
+model3 = lm(Score ~ Pool + Free.internet + Member.years, data = df)
+model4 = lm(Score ~ Pool + Free.internet + Member.years + Gym, data = df)
+model5 = lm(Score ~ Pool + Free.internet + Member.years+ Gym + Spa, data = df)
+```
+
+### AIC
+We will use AIC to determine which model is the best of the three. AIC is a score that is used to determine which model is best based on prediction error. A lower AIC is better
+```{r}
+AIC(model2)
+AIC(model3)
+AIC(model4)
+AIC(model5)
+```
+
+### ANOVA
+We see that model 2 has the lowest AIC. We will compare to our SLR model to see which model is the best predictor for score.
+```{r}
+anova(model2, model1)
+```
+Our results tell us that the extra predictor in model2 is significant.
+
+### Final Model
+We see that both the predictors in the model are significant. With our boxplots, we also see that hotels with a pool and free internet generally tend to have a higher score. This supports our model.
+```{r}
+summary(model2)
+ggplot(df, aes(x=Pool, y=Score)) +
+  geom_boxplot(fill='steelblue') +  facet_wrap(~ Pool) + ylim(0,5.5)
+ggplot(df, aes(x=Free.internet, y=Score)) +
+  geom_boxplot(fill='steelblue') +  facet_wrap(~ Pool) + ylim(0,5.5)
+```
+
+
+# Conclusion
+Our final model includes free internet and pool as the best predictors for score. This tells us that when looking for a hotel in Vegas, we should look for these two predictors to find the hotels with the best experience. 
