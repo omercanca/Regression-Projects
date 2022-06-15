@@ -1,0 +1,220 @@
+---
+title: "Stat 400 Project"
+name: Omer Canca
+date: "28 February 2022"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+
+
+# GLM
+```{r}
+rm(list=ls())
+library(dplyr)
+library(ggplot2)
+library(tidyverse)
+library(psych)
+library(lme4)
+library(lmerTest)
+```
+
+### Source
+The following data source was acquired from Kaggle. It lists multiple types of halloween candies and their traits. Data was collected from a game where participants chose between 2 candies. The win percentage of candies was the main focus of the study. (https://www.kaggle.com/fivethirtyeight/the-ultimate-halloween-candy-power-ranking)
+```{r}
+candy = read.csv(file='C:/users/omerc/Downloads/candy-data.csv', header=T)
+```
+
+## EDA
+```{r}
+head(candy)
+str(candy)
+```
+We would like to make a variable that tells us if the candy won the majority of its matchups. If the value is 1, then it won the majority. If it's 0, it did not. We also add an ID column for possible future reference. We also notice that some columns are characters columns, so we switch the relevant ones to integer columns.
+```{r}
+candy <- mutate(candy, majority = ifelse(winpercent > 50, 1, "0"))
+candy <- tibble::rowid_to_column(candy, "ID")
+candy$majority <- as.numeric(candy$majority)
+```
+
+
+```{r}
+candy %>%
+ggplot(aes(x=chocolate,y=winpercent)) + 
+  geom_boxplot()+ facet_wrap( ~ chocolate) +  labs(title = 'Chocolate and Winpercentage')
+
+candy %>%
+ggplot(aes(x=fruity,y=winpercent)) + 
+  geom_boxplot()+facet_wrap( ~ fruity)+  labs(title = 'Fruity and Winpercentage')
+
+candy %>%
+ggplot(aes(x=sugarpercent,y=winpercent)) + geom_smooth()+  labs(title = 'Sugar vs Winpercentage')
+
+```
+We notice that if a candy contains chocolate, it usually wins the majority of its match-ups. The graphs also tell us that fruity candy's do not usually the majority of their match-ups. Lastly, we see that as sugar percentile rises, the win percentage tends to rise.
+
+## Statistical Analysis
+
+### Model 1
+We begin with a model containing solely chocolate.
+```{r}
+model1 <- glm(majority ~ chocolate, family = binomial, data = candy)
+summary(model1)
+```
+Our model tells us that that chocolate is a significant variable. Our estimated binomial regression model is: \[\log\left(p_i\over1-p_i\right)=-1.2130+2.348chocolate\]
+where p is the estimated proportion of candies who win the majority of their matchups. We can interpret the coefficient on chocolate as \[e^2 = 10.8\] indicating that the odds of a chocolate winning the majority of their matchups is 10 times the odds of of a non-chocolate winning the majority of their matchups
+
+### Model 2
+We notice that chocolate is significant, but our EDA told us that fruity also seemed to have correlation with the response. We therefore create a model with these two variables.
+```{r}
+model2 <- glm(majority ~ chocolate + fruity, family = binomial, data = candy)
+summary(model2)
+```
+We see that there is some correlation with fruity, but it is not significant. However, our AIC has decreased so we will keep it in the model.
+
+### Model 3
+We consider the hard variable
+```{r}
+model3 <- glm(majority ~ chocolate + hard + fruity , family = binomial, data = candy)
+summary(model3)
+```
+Hard is added and is also a significant variable. We also see a decrease in AIC.
+
+### Model 4
+We consider the sugarpercent and peanutyalmondy variable.
+```{r}
+model4 <- glm(majority ~ chocolate + hard + fruity + sugarpercent + peanutyalmondy, family = binomial, data = candy)
+summary(model4)
+```
+Sugarpercent is a little farther from being significant. However, because it lowered our AIC even farther, we will keep it as our final model.
+
+### Model 5 (Interactions)
+Most fruity candies are hard, so I wanted to test if there was any interaction bertween fruity and hard
+```{r}
+model5 = glm(majority ~ chocolate + hard* fruity + sugarpercent + peanutyalmondy, family = binomial, data = candy)
+summary(model5)
+```
+The interaction term is far from significant and AIC increases.
+
+### Model 6 (More Interactions)
+Most chocolate candies have nuts, so I wanted to test if there was any interaction between chocolate and peanutyalmondy
+```{r}
+model6 = glm(majority ~ chocolate * peanutyalmondy + hard + fruity + sugarpercent, family = binomial, data = candy)
+summary(model6)
+```
+The interaction term is far from significant but AIC decreases
+
+```{r}
+two.way <- aov(majority ~  hard + fruity + sugarpercent + peanutyalmondy * chocolate, data = candy)
+summary(two.way)
+```
+PeanutAlmondy is not significant so we will use the model without the interaction (model4).
+
+### Overdispersion
+We deny the need for an overdispersion parameter because our residual deviance is close enough to a 1:1 ratio with our degrees of freedom.
+
+### Interpreting Parameters
+
+\[e^4 = 70.386\] so the odds of a chocolate winning the majority of their matchups is 70.386 times the odds of of a non-chocolate winning the majority of their matchups
+\[e^-3 = 0.03099\] so the odds of a hard candy winning the majority of their matchups is 0.03099 times the odds of of a non-hard winning the majority of their matchups
+\[e^3 = 25.687\] so the odds of a fruity winning the majority of their matchups is 25.687 times the odds of of a non-fruity winning the majority of their matchups
+\[e^1 = 6.37\] this is log odds increase of winning the majority of matchups for every rise in sugar percentile 
+\[e^2 = 12.28\] so the odds of a peanutyalnmondy winning the majority of their matchups is 12.28 times the odds of of a non-peanutalmondy winning the majority of their matchups
+
+### Conclusion
+Our final model to predict whether certain traits give a candy a higher chance of winning the majority of its matchups is 
+\[\log\left(p_i\over1-p_i\right)=-4.466+4.254chocolate -3.474hard + 3.246fruity + 1.852sugarpercent + 2.508peanutyalmondy\] We can be sure of this for a couple of reasons. This model gave us the most significant terms. Although some terms were not significant, it also gave us the lowest AIC. This tells us that this model gives us the least prediction error while also keeping the most predictors. 
+
+# LMM
+
+### Source
+The following data source was acquired from uvm.edu. It shows various tree statistics grouped by multiple variables. The data will be analyzed at 2 levels, including Plot and Tree At each level, we will analyze a variable (e.g. height at a certain year). The data was collected by the state of Vermont to capture broad temporal changes in the condition of the national forest resource.
+(https://www.uvm.edu/femc/data/archive/project/federal-forest-inventory-analysis-data-for/dataset/tree-data-for-intensive-sampling-forest)
+```{r}
+data = read.csv(file = "C:/users/omerc/Downloads/tree.csv")
+```
+
+### Summarized results and Variable Renaming
+Very few data cleaning was required. Sample of the data set using is shown below as well as renaming one variable (YEAR) for convenience when model building. Also added an ID column
+```{r}
+head(data)
+str(data)
+names(data)[names(data) == 'INVYR'] <- 'YEAR'
+data$ID <- seq.int(nrow(data))
+```
+
+## EDA
+At level 2 we have have variables that have to do with the plot: Subplot,
+At level 1 we have variables that have to do with the trees: Height, SpeciesID, Diameter, Year
+```{r}
+ggplot(data=data, aes(HT)) + geom_density()
+ggplot(data=data, aes(x=HT,y=YEAR)) + geom_smooth()
+
+ggplot(data, aes(x=HT,y=YEAR)) +
+geom_point() + geom_line() + facet_wrap(~SPECIES,ncol=6)
+
+```
+Our first graph shows the density of height. It's distribution is approximately normal.
+
+Our second graph shows a relationship between year and height. We see that trees in earlier years seemed to have been taller. Perhaps this means that trees were planted late into the data collection.
+
+Our final graph shows HT vs Year for each species. There does not seem to be a significant enough relationship here. However, the model may tell us otherwise. 
+
+### Model A: Unconditional Means Model
+```{r}
+model.a <- lmer(HT ~ 1 + (1 | TREE), REML = T, data = data)
+summary(model.a)
+```
+### Model B
+Add a level 1 covariate (DIA)
+```{r}
+model.b <- lmer(HT ~ DIA +  (DIA | TREE), data = data)
+summary(model.b)
+```
+21.03 mean ht before DIA  
+0.1798 mean increase in HT for increase in DIA
+136.79 variance in tree deviations
+DIA is significant
+
+### Model C
+Added a level 2 covariate
+```{r}
+model.c <- lmer(HT ~ ELEV + DIA + ELEV:DIA +
+  (1|TREE), data = data)
+summary(model.c)
+```
+We see that DIA and the interaction is significant
+
+### Model D
+Added more level 1 covariates (SpeciesID, Year)
+```{r}
+model.d <- lmer(HT ~ ELEV + DIA + SPCD + YEAR + YEAR:DIA + SPCD:DIA + ELEV:DIA +
+  (DIA|TREE), data = data)
+summary(model.d)
+```
+We see that the SPCD variable is significant. Its added interaction is nearly significant at the 90% confidence level.
+
+We do not see the year as a significant variable. This may be because the trees heights were taken after the trees had reached their full growth. We will run anova to see if it is a significant enough variable
+```{r}
+model.e <- lmer(HT ~ ELEV + DIA + SPCD +  SPCD:DIA + ELEV:DIA +
+  (DIA|TREE), data = data)
+anova(model.d, model.e)
+```
+The interaction and year varialbe is significant. We will keep it.
+
+### Final Model
+Below is our final model.
+```{r}
+model.d
+```
+
+### Conclusion
+Our final model to predict whether the heights of trees based on level 2(traits of the plot) and level 1(traits of the tree) variables is as see in model.d. We choose this model for various reasons. This model gave us the most significant terms. Although some terms were not significant, after running the anova function, we see that the Year variable is significant. Also, we see that that DIA, SPCD, and a few interactions are also significant enough to keep in the model. This means that they are valid predictors for height/
+
+# Relevant Items 
+
+[Presentation Link](https://docs.google.com/presentation/d/1KcDGr60E_6NPt7Ni2956GlZeYrt4wj1_99mMbzMcxsM/edit?usp=sharing)
+
+[Variables Link](https://docs.google.com/document/d/1JkIqX9g1g0BFydWw8vzrmy9veDC74-BgIPrgi9uoPNo/edit?usp=sharing)
+
