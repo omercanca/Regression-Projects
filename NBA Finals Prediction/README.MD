@@ -60,22 +60,22 @@ The data was taken from Kaggle and lists the box score from each game of the fin
 ### EDA
 During my exploratory data analysis, I created graphs using variables that I thought were most likely to influence a teams win chance. These variables include points, assists, rebounds, turnovers, and a few more. Below are highlights from the visualizations.
 
-![](C:/Users/omerc/desktop/4.png)
-![](/desktop/5.png)
-![](desktop/3.png)
-![](/desktop/2.png)
-![](desktop/1.png)
+![](Images/4.png)
+![](Images/3.png)
+![](Images/2.png)
+![](Images/1.png)
+![](Images/5.png)
 
 ### Model Building
 I determined the best model using backward stepwise regression. Starting with a full model, I removed variables until the remaining variables were significant. The photo below shows the model I began with and my final model. We
-![](desktop/6.png)
-![](/desktop/7.png)
+![](Images/6.png)
+![](Images/7.png)
 
 ## Model Prediction
 I then used the box score from a game not in the dataset with my model. I'm sure you can guess which.
 ![](https://fivethirtyeight.com/features/the-warriors-latest-title-might-be-their-most-surprising/)
 With the way Golden State played in Game 6 of the 2022 finals, they had a 1.893 log odds of winning the game. This results in a probability of 0.654 according to my model. 
-![](desktop/8.png)
+![](Images/8.png)
 
 ## Conclusion
 As it turns out, the 3 pointer is just as crucial as we thought. Although the reason the Dubs were able to win their fourth title, it is not the most *mathematically significant* stat. We find that having more steals, less turnovers, and total rebounds are more important. To no surpise, these are all *possession* statistics. Keeping the ball safe and taking it away from the other team is the best offense. The more you have the ball, the more chances you have to score.
